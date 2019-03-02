@@ -1,0 +1,128 @@
+--------------------------------------------------------------Trigger Fill Number of Contact Field---------------------------------------------------------------
+
+trigger PopulateAccountFields on Contact (after insert,after update) {
+    map<String,list<Contact>> mapContact =new map<String,list<Contact>>();
+    list<Account> lstAccount = new list<Account>();
+    set<id> setID = new set<id>();
+    for(contact objContact : trigger.new)
+    {
+        setID.add(objContact.AccountId);
+    }
+    list<contact> lstContact =[select id,AccountId  from contact Where AccountId In :setID ];
+    System.debug('lstContact'+lstContact);
+    for(contact objContact : lstContact){
+        if(!mapContact.containsKey(objContact.AccountId))
+        {
+            mapContact.put(objContact.AccountId,new list<Contact>());
+            
+        }
+        mapContact.get(objContact.AccountId).add(objContact);
+    }
+    for(contact objContact : trigger.new)
+    {
+        Account objAccount = new Account(id=objContact.AccountId);
+        objAccount.Number_of_Contacts__c = mapContact.get(objContact.AccountId).size();
+        lstAccount.add(objAccount);
+    }
+    if(lstAccount.size()>0)
+    {
+        update lstAccount;
+    }
+}
+
+-------------------------------------------------------------Lightning Component---------------------------------------------------------------------------------
+
+
+<aura:component controller="ShowRecordController" implements="force:appHostable,flexipage:availableForAllPageTypes,flexipage:availableForRecordHome,force:hasRecordId,forceCommunity:availableForAllPageTypes,force:lightningQuickAction" access="global" >
+	<aura:handler name="init" value="{!this}" action="{!c.doInit}" />
+    <aura:attribute name="Accounts" type="List" default="{'sObjectType':'Account','id' : '','Name' : ''}"/>
+    
+    <table class="slds-table slds-table_bordered slds-table_striped slds-table_cell-buffer slds-table_fixed-layout">
+          <thead>
+            <tr class="slds-text-heading_label">
+              <th scope="col"><div class="slds-truncate" title="ID">ID</div></th>
+              <th scope="col"><div class="slds-truncate" title="Name">Name</div></th>
+             
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Use the Apex model and controller to fetch server side data -->
+            <aura:iteration items="{!v.Accounts}" var="account">
+                <tr>
+                    <td data-label="id" scope="row">
+                        <div class="slds-truncate" title="id">
+                            <lightning:input value="{!account.Id}" />
+                        </div>
+                    </td>
+                    <td data-label="Name" scope="row">
+                        <div class="slds-truncate" title="Name">
+                            <lightning:input value="{!account.Name}" />
+                        </div>
+                    </td>
+                 
+                   
+                    
+                </tr>
+            </aura:iteration>
+          </tbody>
+        </table>
+</aura:component>
+
+-----------------------------------------------------------------------Aura Controller--------------------------------------------------------------------------
+({
+	doInit : function(component, event, helper) {
+     
+ 
+    var action = component.get("c.ShowRecordControllerr"); // calling the server side action using c notifier
+ 
+  
+ 
+    action.setCallback(this, function(response) {
+ 
+        var state = response.getState();
+ 
+        if (state == 'SUCCESS') {
+ 				console.log('asdaf',response.getReturnValue());
+               component.set("v.Accounts", response.getReturnValue());
+ 				
+        }
+ 
+        else {
+ 
+            console.log(state);
+ 
+        }
+ 
+    });
+ 
+    $A.enqueueAction(action);
+    
+    }
+
+      
+})
+
+--------------------------------------------------------------------App-----------------------------------------------------------------------------------------
+
+<aura:application >
+    <c:ShowRecords/>
+</aura:application>
+
+
+
+--------------------------------------------------------------Callout Class--------------------------------------------------------------------------------------
+
+public class CallOutClass {
+ public void basicAuthCallout(){
+     HttpRequest req = new HttpRequest();
+     req.setEndpoint('https://postman-echo.com?foo1=bar1&foo2=bar2');
+     req.setMethod('GET');
+
+     // Create a new http object to send the request object
+     // A response object is generated as a result of the request  
+  
+     Http http = new Http();
+     HTTPResponse res = http.send(req);
+     System.debug(res.getBody());
+   }
+}
